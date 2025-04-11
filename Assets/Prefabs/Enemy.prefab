@@ -104,10 +104,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   jumpForce: 10
-  health: 4
+  lives: 4
   pizzaPrefab: {fileID: 0}
   shootForce: 10
   shootPoint: {fileID: 0}
+  healthBar: {fileID: 0}
 --- !u!50 &4133073818823415369
 Rigidbody2D:
   serializedVersion: 5
