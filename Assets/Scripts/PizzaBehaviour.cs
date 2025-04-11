@@ -2,42 +2,28 @@ using UnityEngine;
 
 public class PizzaBehaviour : MonoBehaviour
 {
-    public float lifeTime = 3f; // tempo di vita in secondi
-
-    void Start()
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        Destroy(gameObject, lifeTime);
-    }
-
-    void Update()
-    {
-
-    }
-
-    // quando collide con un player o qualcosa
-    private void OnCollisionEnter2D(Collision2D collision) 
-    {
-        if (collision.gameObject.CompareTag("Ground")) Destroy(gameObject);
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            Destroy(gameObject); // Distruggi la pizza se colpisce il terreno
+        }
         else if (collision.gameObject.CompareTag("Player"))
         {
-            
-
-            // toglie la vita al player
-
             PlayerController player = collision.gameObject.GetComponent<PlayerController>();
 
+            // Applica il danno solo al giocatore avversario
             if (player != null)
             {
-                player.TakeDamage(); // Riduci le vite del giocatore colpito
+                Debug.Log("Pizza ha colpito un giocatore!");
+
+                // Ignora le forze fisiche durante la collisione
+                Physics2D.IgnoreCollision(collision.collider, GetComponent<Collider2D>());
+
+                player.TakeDamage(); // Applica il danno
             }
 
-            Destroy(gameObject); // Distruggi la pizza dopo aver colpito
+            Destroy(gameObject); // Distruggi la pizza dopo aver colpito un giocatore
         }
-
-
     }
-
-    
-
-
 }

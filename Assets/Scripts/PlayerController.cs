@@ -1,16 +1,9 @@
-/*
- * Matteo Angiolillo 4�H 2024-03-22 Script per gestire movimento giocatore
-*/
-
-using NUnit.Framework.Constraints;
-using Unity.VisualScripting;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using Photon.Pun;
+using System.IO;
 
-public class PlayerController : MonoBehaviour
-{   
-    // variabili giocatore
-
+public class PlayerController : MonoBehaviourPun
+{
     public float moveSpeed = 5f;
     public float jumpForce = 10f;
     private Rigidbody2D rb;
@@ -18,42 +11,45 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     public int lives = 4;
 
-    // riferimenti e variabili alle pizze da sparare
-
     public GameObject pizzaPrefab; // Prefab della pizza
     public float shootForce = 10f; // Forza di lancio
     public Transform shootPoint;  // Punto da cui esce la pizza
 
-    // riferimento alla healtbar
-
     public Healthbar healthBar; // Riferimento alla health bar
+    
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody2D>(); // prende il riferimento al componente
-        sr = GetComponent<SpriteRenderer>(); // prnde il riferimento al render
-       
+        rb = GetComponent<Rigidbody2D>();
+        sr = GetComponent<SpriteRenderer>();
+
+        if (photonView.IsMine)
+        {
+            Debug.Log("Questo è il mio giocatore.");
+        }
+        else
+        {
+            Debug.Log("Questo è un giocatore remoto.");
+        }
     }
 
     void Update()
     {
-        float moveInput = Input.GetAxis("Horizontal"); // prende il movimento orizzontale 
-        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocityY); // assegna il vettore alla propriet� velocit� del nostro rigidbody
+        if (!photonView.IsMine) return; // Controlla solo il giocatore locale
 
-        // per flippare il player
+        float moveInput = Input.GetAxis("Horizontal");
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
 
-        if (moveInput > 0) // se va a destra
+        if (moveInput > 0)
         {
             sr.flipX = false;
-            shootPoint.transform.localPosition = new Vector2(0.5f, shootPoint.transform.localPosition.y); // per sparare a destra
+            shootPoint.transform.localPosition = new Vector2(0.5f, shootPoint.transform.localPosition.y);
         }
-        else if (moveInput < 0) // sinistra
+        else if (moveInput < 0)
         {
-            sr.flipX = true; // propriet� dello sprite render
-            shootPoint.transform.localPosition = new Vector2(-0.5f, shootPoint.transform.localPosition.y); // per sparare a sinitra
+            sr.flipX = true;
+            shootPoint.transform.localPosition = new Vector2(-0.5f, shootPoint.transform.localPosition.y);
         }
-
-        // salto
 
         if (isGrounded && Input.GetKeyDown(KeyCode.Space))
         {
@@ -61,79 +57,142 @@ public class PlayerController : MonoBehaviour
             isGrounded = false;
         }
 
-        // sparo
-
         if (Input.GetKeyDown(KeyCode.F))
         {
             Spara();
         }
     }
 
-    void Spara() // funzione base per sparare le pizze
+    void FixedUpdate()
     {
-        
-        GameObject pizza = Instantiate(pizzaPrefab, shootPoint.position, shootPoint.rotation); // istanziare il prefab
+        if (!photonView.IsMine) return; // Controlla solo il giocatore locale
 
-        Vector2 direction = !sr.flipX ? Vector2.right : Vector2.left;         // Direzione del giocatore (destra o sinistra) 
-
-        // Applica forza nella direzione corrente
-
-        Rigidbody2D rb = pizza.GetComponent<Rigidbody2D>();
-        rb.linearVelocity = new Vector2(direction.x * shootForce, 1f); // assegna un vettore per la forza in x e in y
-
+        // Blocca il movimento indesiderato quando il giocatore è fermo
+        if (Mathf.Abs(Input.GetAxis("Horizontal")) < 0.1f && isGrounded)
+        {
+            rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+        }
     }
 
+    void Spara()
+    {
+        if (pizzaPrefab == null)
+        {
+            Debug.LogError("Errore: PizzaPrefab non assegnato!");
+            return;
+        }
 
+        // Calcola la direzione della pizza
+        Vector3 direction = !sr.flipX ? Vector3.right : Vector3.left;
+
+        // Invia una RPC per istanziare la pizza su tutti i client
+        photonView.RPC("InstantiatePizza", RpcTarget.All, shootPoint.position, shootPoint.rotation, direction);
+    }
+
+    [PunRPC]
+    void InstantiatePizza(Vector3 position, Quaternion rotation, Vector3 direction)
+    {
+        // Istanzia la pizza
+        GameObject pizza = Instantiate(pizzaPrefab, position, rotation);
+
+        // Ottieni il Rigidbody2D della pizza
+        Rigidbody2D rb = pizza.GetComponent<Rigidbody2D>();
+        if (rb == null)
+        {
+            Debug.LogError("Errore: La pizza non ha un componente Rigidbody2D.");
+            Destroy(pizza);
+            return;
+        }
+
+        // Imposta la velocità della pizza
+        rb.linearVelocity = direction * shootForce;
+
+        // Distruggi la pizza dopo un certo tempo
+        Destroy(pizza, 3f);
+    }
+        
     public void AssignHealthBar(Healthbar assignedHealthBar)
     {
-        healthBar = assignedHealthBar; // Assegna la health bar
+        healthBar = assignedHealthBar;
         
         if (healthBar != null)
         {
-            healthBar.UpdateHearts(lives); // Inizializza la health bar
+            Debug.Log("Health bar assegnata correttamente.");
+            healthBar.UpdateHearts(lives); // Aggiorna immediatamente la health bar con le vite correnti
+            
         }
+        else
+        {
+            Debug.LogError("Errore: Health bar non assegnata!");
+        }
+    }
+
+    [PunRPC]
+    void UpdateLives(int playerId, int newLives)
+    {
+        GameManager.healthBarNemico.UpdateHearts(newLives);
+        /*
+         
+        if (newLives == 0) 
+        {
+            // hai vinto
+        }
+
+        */
     }
 
     public void TakeDamage()
     {
+        if (!photonView.IsMine) return; // Applica il danno solo al giocatore locale
+               
         lives--;
-        Debug.Log("Vite rimaste: " + lives);
 
-        // Aggiorna la health bar
         if (healthBar != null)
         {
-            healthBar.UpdateHearts(lives);
+            Debug.Log("Aggiornamento health bar...");
+            healthBar.UpdateHearts(lives); // Aggiorna la health bar
         }
 
+        Debug.Log("Vite rimaste: " + lives);
+        photonView.RPC("UpdateLives", RpcTarget.Others, photonView.OwnerActorNr, lives);
+        
         if (lives <= 0)
         {
-            Die();
-        }
-    }
+            Die(); // Elimina il giocatore se le vite sono esaurite
 
+            // hai perso
+            
+        }     
+    }
 
     void Die()
     {
         Debug.Log("Giocatore eliminato");
-        Destroy(gameObject);
+
+        // Forza il trasferimento del controllo al MasterClient se necessario
+        if (!photonView.IsMine && PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log("Trasferimento del controllo al MasterClient...");
+            photonView.TransferOwnership(PhotonNetwork.LocalPlayer);
+        }
+
+        // Solo il proprietario o il MasterClient può distruggere il giocatore
+        if (photonView.IsMine || PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log("Eliminazione del giocatore...");
+            PhotonNetwork.Destroy(gameObject); // Rimuovi il giocatore dalla scena
+        }
+        else
+        {
+            Debug.LogWarning("Tentativo di eliminare il giocatore fallito: Nessun permesso.");
+        }
     }
-
-
-    #region Collisioni
-
-    // per gestire le collisioni con i tag -> Ground | Wall
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        if(collision.gameObject.CompareTag("Ground"))
+        if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
         }
-        
-        
     }
-
-    #endregion
-
 }
-
