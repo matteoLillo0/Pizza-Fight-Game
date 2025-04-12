@@ -1,18 +1,30 @@
 using UnityEngine;
 using Photon.Pun;
+using UnityEngine.UIElements;
 
 public class GameManager : MonoBehaviourPunCallbacks
 {
     public Healthbar player1HealthBar; // Health bar del giocatore 1
     public Healthbar player2HealthBar; // Health bar del giocatore 2
     public static Healthbar healthBarNemico;
+    
+    public GameObject winPanel; // Riferimento al pannello di vittoria
+    
+    public GameObject losePanel; // Riferimento al pannello di sconfitta    
 
+    static private GameManager instance;
+
+    
     void Start()
     {
         Debug.Log("GameManager: Start() eseguito.");
         // Non chiama CreatePlayer() qui. Aspetta che il client entri in una stanza.
         CreatePlayer();
-        GameManager.healthBarNemico = player2HealthBar; 
+
+        GameManager.healthBarNemico = player2HealthBar;
+
+        instance = this;
+
     }
 
     public override void OnJoinedRoom()
@@ -52,12 +64,33 @@ public class GameManager : MonoBehaviourPunCallbacks
             playerController.AssignHealthBar(player1HealthBar); // Assegna la health bar locale
         }
         else
-        {
-            
+        {            
             Debug.Log("GameManager: Assegnazione health bar remota.");
             playerController.AssignHealthBar(player2HealthBar); // Assegnazione health bar remota
         }
     }
+
+
+
+    static public void ShowWinPanel()
+    {        
+        Debug.Log("Mostra pannello di vittoria!");
+        instance.winPanel.SetActive(true); // Mostra il pannello di vittoria        
+    }
+
+
+    static public void ShowLosePanel()
+    {
+        Debug.Log("Mostra pannello di sconfitta!");
+        instance.losePanel.SetActive(true); // Mostra il pannello di sconfitta     
+    }
+
+    public void QuitGame()
+    {
+        Debug.Log("Uscita dal gioco...");
+        Application.Quit(); // Chiude l'applicazione
+    }
+
 
     public override void OnPlayerLeftRoom(Photon.Realtime.Player otherPlayer)
     {

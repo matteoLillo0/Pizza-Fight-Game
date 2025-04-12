@@ -107,8 +107,14 @@ public class PlayerController : MonoBehaviourPun
         // Imposta la velocità della pizza
         rb.linearVelocity = direction * shootForce;
 
+        PizzaBehaviour pizzaBehaviour = pizza.GetComponent<PizzaBehaviour>();
+        if (pizzaBehaviour != null)
+        {
+            pizzaBehaviour.SetOwner(this); // Assegna il proprietario
+        }
+
         // Distruggi la pizza dopo un certo tempo
-        Destroy(pizza, 3f);
+        Destroy(pizza, 2f);
     }
         
     public void AssignHealthBar(Healthbar assignedHealthBar)
@@ -130,15 +136,17 @@ public class PlayerController : MonoBehaviourPun
     [PunRPC]
     void UpdateLives(int playerId, int newLives)
     {
-        GameManager.healthBarNemico.UpdateHearts(newLives);
-        /*
+        GameManager.healthBarNemico.UpdateHearts(newLives);        
          
         if (newLives == 0) 
         {
-            // hai vinto
+            Debug.Log("Win panel");
+            GameManager.ShowWinPanel();
+            
+
         }
 
-        */
+        
     }
 
     public void TakeDamage()
@@ -159,11 +167,10 @@ public class PlayerController : MonoBehaviourPun
         if (lives <= 0)
         {
             Die(); // Elimina il giocatore se le vite sono esaurite
-
-            // hai perso
-            
+            Debug.Log("Hai perso");
+            GameManager.ShowLosePanel();
         }     
-    }
+    }      
 
     void Die()
     {

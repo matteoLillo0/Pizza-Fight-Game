@@ -2,8 +2,16 @@ using UnityEngine;
 
 public class PizzaBehaviour : MonoBehaviour
 {
+    private PlayerController owner; // Proprietario della pizza
+
+    public void SetOwner(PlayerController player)
+    {
+        owner = player; // Assegna il proprietario
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        
         if (collision.gameObject.CompareTag("Ground"))
         {
             Destroy(gameObject); // Distruggi la pizza se colpisce il terreno
@@ -13,7 +21,7 @@ public class PizzaBehaviour : MonoBehaviour
             PlayerController player = collision.gameObject.GetComponent<PlayerController>();
 
             // Applica il danno solo al giocatore avversario
-            if (player != null)
+            if (player != null && player != owner)
             {
                 Debug.Log("Pizza ha colpito un giocatore!");
 
