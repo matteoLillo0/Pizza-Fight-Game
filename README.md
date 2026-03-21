@@ -1,4 +1,4 @@
-# Pizza Fight - 2D Multiplayer Brawler
+# 🍕 Pizza Fight - 2D Multiplayer Brawler
 
 ## 📝 Descrizione del Progetto
 
